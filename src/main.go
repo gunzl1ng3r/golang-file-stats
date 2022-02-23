@@ -1,8 +1,10 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"log"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -18,6 +20,27 @@ func main() {
 
 	// create name of outputFile based on baseDirectory (replace / with _)
 	outputFile := strings.Join(removeEmptyElementsFromSlice(strings.Split(*baseDirectory, "/")), "_")
+	lockFilePath := *outputFilePath + outputFile + ".lock"
+
+	// check if lockfile exists
+	_, err := os.Stat(outputFile + ".lock")
+
+	// if stat on lockfile returns "file does not exist", we are good to continue
+	if errors.Is(err, os.ErrNotExist) {
+		if *debug {
+			log.Println("DEBUG - creating lockfile (" + lockFilePath + ") to prevent concurrent runs.")
+			lockFile, err := os.Create(lockFilePath)
+			if err != nil {
+				log.Println("ERROR - Somthing went wrong trying to create lockfile" + lockFilePath)
+				log.Panic(err)
+			}
+			defer lockFile.Close()
+		}
+	} else {
+		// if we find a lockfile, we abort
+		log.Println("INFO - Job already running. Exiting.")
+		os.Exit(0)
+	}
 
 	var objects = make(map[string]int64)
 	var baseDirectoryDepth = len(strings.Split(*baseDirectory, "/"))
@@ -61,5 +84,14 @@ func main() {
 
 		// finally call function to write results to file
 		writeMetricFile(*outputFilePath+outputFile+".prom", fileContent, *debug)
+
+	}
+	err = os.Remove(lockFilePath)
+	if err != nil {
+		log.Println("ERROR - failed to delete lockfile (" + lockFilePath + ")")
+	} else {
+		if *debug {
+			log.Println("DEBUG - successfully removed lockfile (" + lockFilePath + ")")
+		}
 	}
 }
