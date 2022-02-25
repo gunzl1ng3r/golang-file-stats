@@ -7,9 +7,12 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func main() {
+
+	queryDuration := time.Now().UnixMilli()
 
 	debug := flag.Bool("debug", false, "enable debug mode")
 	baseDirectory := flag.String("baseDirectory", "./", "path to directory you want to evaluate")
@@ -82,10 +85,16 @@ func main() {
 			}
 		}
 
-		// finally call function to write results to file
-		writeMetricFile(*outputFilePath+outputFile+".prom", fileContent, *debug)
-
 	}
+
+	fileContent = append(fileContent, "# HELP file_size_query_duration The time in milliseconds it took to get the size of a given path.")
+	fileContent = append(fileContent, "# TYPE file_size_query_duration gauge")
+	queryDuration = time.Now().UnixMilli() - queryDuration
+	fileContent = append(fileContent, "file_size_query_duration{path=\""+*baseDirectory+"\"} "+strconv.FormatInt(queryDuration, 10))
+
+	// finally call function to write results to file
+	writeMetricFile(*outputFilePath+outputFile+".prom", fileContent, *debug)
+
 	err = os.Remove(lockFilePath)
 	if err != nil {
 		log.Println("ERROR - failed to delete lockfile (" + lockFilePath + ")")
