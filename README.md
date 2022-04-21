@@ -1,6 +1,6 @@
-# file-count
+# file-stats
 
-* counts the number of objects at the given path
+* collects the size of object at the given path
 
 ## outline
 
